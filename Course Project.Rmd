@@ -1,0 +1,144 @@
+---
+title: 'Practical Machine Learning: Course Project'
+author: "David Nidorf"
+date: "December 10, 2019"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+set.seed(42)
+```
+
+# Executive Summary
+
+In this report, we analyze a data set containing detailed information about a number of individuals who were studied whilst exercising in different manners. We then apply machine learning in order to build a model that can use the other variables in the data set to predict the manner of exercise that was done (denoted in the data as 'classe').
+
+# Data set analysis
+
+The data set is split into a training and test set.  Both contain 160 variables, though the final variable, classe, is obfuscated in the test set.
+
+Firstly, we load the data and take a look at the classe and user_name variables:
+
+```{r, echo = FALSE, results = "hide"}
+
+# Data is courtesy of Groupware, "Human Activity Recognition" [here](http://groupware.les.inf.puc-rio.br/har).
+
+training = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+testing  = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+
+#Libraries
+library(caret)
+library(dplyr)
+library(randomForest)
+```
+
+```{r, echo = TRUE}
+training %>% group_by(user_name) %>% count(classe)
+```
+
+We can see that 5 different types of exercise were performed by 6 different people.
+
+# Methodology
+
+## Splitting the data set
+
+Whilst our eventual goal is to test our model using the provided testing set of 20 observations, if we are to gauge the accuracy of the model we need a test set where we can check the veracity of our predictions. 
+
+```{r}
+trainingParts<-createDataPartition(y=training$classe, p=0.9, list=FALSE)
+
+train<-training[trainingParts,]
+
+validate<-training[-trainingParts,]
+```
+
+Here, since we have a large data set, we will just reserve 10% of the data set as a validation set.
+
+## Preprocessing
+
+Performing a summarize() on our data tells us some of the columns we'd expect as numerics are actually factors, and that there are missing and NA values in the data set.  Some columns may also have near-zero variance, in which case it's safe to exclude them from the model. Additionally, since the numeric values have differing scales, centering and scaling the values to normalize them will be helpful as well.
+
+Note that we perform the same mutations to the validatio and testing sets as well, otherwise the produced model will not be able to be applied to these other sets correctly.
+
+```{r}
+# Convert columns 8-159 to numeric (1-7 and 160 include expected factors)
+trainTyped<-train
+trainTyped[,8:159]<-sapply(train[,8:159],as.character)
+validateTyped<-validate
+validateTyped[,8:159]<-sapply(validate[,8:159],as.character)
+testTyped<-testing
+testTyped[,8:159]<-sapply(testing[,8:159],as.character)
+# Note that we will intentionall coerce some values to NA, so we suppress warnings about that
+suppressWarnings(trainTyped[,8:159]<-sapply(trainTyped[,8:159],as.numeric))
+suppressWarnings(validateTyped[,8:159]<-sapply(validateTyped[,8:159],as.numeric))
+suppressWarnings(testTyped[,8:159]<-sapply(testTyped[,8:159],as.numeric))
+
+# Remove empty/near-zero-variance columns
+colsToIgnore<-nearZeroVar(trainTyped)
+trainFiltered<-trainTyped[,-colsToIgnore]
+validateFiltered<-validateTyped[,-colsToIgnore]
+testFiltered<-testTyped[,-colsToIgnore]
+
+# Get the list of columns that have any NA values
+naCols<-names(trainFiltered[1,colSums(is.na(trainFiltered))>0])
+
+# Use K Nearest Neighbor to impute NA/missing values (but don't replace others)
+preProcImpute<-preProcess(trainFiltered, method="knnImpute")
+trainImputed<-trainFiltered
+trainImputed[,naCols]<-predict(preProcImpute, trainFiltered)[,naCols]
+validateImputed<-validateFiltered
+validateImputed[,naCols]<-predict(preProcImpute,validateFiltered)[,naCols]
+testImputed<-testFiltered
+testImputed[,naCols]<-predict(preProcImpute,testFiltered)[,naCols]
+
+# Center & scale
+preProcCenterScale<-preProcess(trainImputed, method=c("center", "scale"))
+ppTrain<-predict(preProcCenterScale, trainImputed)
+ppValidate<-predict(preProcCenterScale, validateImputed)
+ppTest<-predict(preProcCenterScale, testImputed)
+```
+ 
+## Training a model
+
+Now that we have a tidier data set, we can go ahead and train a model.  We will use a random forest model since that type of model is generally quite accurate, though slow, and it does handle a large range of variables reasonably well.
+
+We will drop the first five columns - the row number, participant and timestamp columns - because while these might help fit the model more accurately to the validation and test set, they also limit how well the model might generalize to a broader data set.  We could check if the test set has the same time period or users as the training data in this case, but that's not always possible and so in order to avoid overfitting, we'll omit these columns when fitting the mode.
+
+```{r}
+# Train a random forest
+modFit <- train(ppTrain[8:125], ppTrain$classe, method="rf", trControl=trainControl(method="cv", number=5), prox=TRUE, allowParallel=TRUE)
+```
+
+## Validating the model
+
+Now that we have a model, we can apply it to our validation set to see how accurate it is:
+
+```{r}
+predValidate <- predict(modFit, ppValidate)
+
+table(predValidate, ppValidate$classe)
+```
+
+Here we see that we were only wrong for 5 predictions out of 1960! So we can feel fairly comfortable applying the model to the testing set:
+
+```{r}
+predTest <- predict(modFit, ppTest)
+
+predTest
+```
+
+All of these predictions turned out to be accurate.
+
+# Conclusion
+
+After preprocessing the data, we are able to train a random forest model that can accurately predict nearly all of our validation cases, and in all of our test cases.
+
+# References
+
+Data is courtesy of Groupware, "Human Activity Recognition" [here](http://groupware.les.inf.puc-rio.br/har):
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
