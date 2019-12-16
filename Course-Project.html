@@ -1724,7 +1724,7 @@ ppTest&lt;-predict(preProcCenterScale, testImputed)</code></pre>
 <div id="training-a-model" class="section level2">
 <h2>Training a model</h2>
 <p>Now that we have a tidier data set, we can go ahead and train a model. We will use a random forest model since that type of model is generally quite accurate, though slow, and it does handle a large range of variables reasonably well.</p>
-<p>We will drop the first five columns - the row number, participant and timestamp columns - because while these might help fit the model more accurately to the validation and test set, they also limit how well the model might generalize to a broader data set. We could check if the test set has the same time period or users as the training data in this case, but that’s not always possible and so in order to avoid overfitting, we’ll omit these columns when fitting the mode.</p>
+<p>We will drop the first five columns - the row number, participant and timestamp columns - because while these might help fit the model more accurately to the validation and test set, they also limit how well the model might generalize to a broader data set. We could check if the test set has the same time period or users as the training data in this case, but that’s not always possible and so in order to avoid overfitting, we’ll omit these columns when fitting the mode.  This approach effectively serves as a form of cross-validation.</p>
 <pre class="r"><code># Train a random forest
 modFit &lt;- train(ppTrain[8:125], ppTrain$classe, method=&quot;rf&quot;, trControl=trainControl(method=&quot;cv&quot;, number=5), prox=TRUE, allowParallel=TRUE)</code></pre>
 </div>

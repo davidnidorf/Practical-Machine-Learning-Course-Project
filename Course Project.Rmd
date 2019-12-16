@@ -23,7 +23,7 @@ The data set is split into a training and test set.  Both contain 160 variables,
 
 Firstly, we load the data and take a look at the classe and user_name variables:
 
-```{r, echo = FALSE, results = "hide"}
+```{r, echo = TRUE, results = "hide"}
 
 # Data is courtesy of Groupware, "Human Activity Recognition" [here](http://groupware.les.inf.puc-rio.br/har).
 
@@ -34,9 +34,7 @@ testing  = read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-tes
 library(caret)
 library(dplyr)
 library(randomForest)
-```
 
-```{r, echo = TRUE}
 training %>% group_by(user_name) %>% count(classe)
 ```
 
@@ -106,11 +104,13 @@ ppTest<-predict(preProcCenterScale, testImputed)
 
 Now that we have a tidier data set, we can go ahead and train a model.  We will use a random forest model since that type of model is generally quite accurate, though slow, and it does handle a large range of variables reasonably well.
 
-We will drop the first five columns - the row number, participant and timestamp columns - because while these might help fit the model more accurately to the validation and test set, they also limit how well the model might generalize to a broader data set.  We could check if the test set has the same time period or users as the training data in this case, but that's not always possible and so in order to avoid overfitting, we'll omit these columns when fitting the mode.
+We will drop the first five columns - the row number, participant and timestamp columns - because while these might help fit the model more accurately to the validation and test set, they also limit how well the model might generalize to a broader data set.  We could check if the test set has the same time period or users as the training data in this case, but that's not always possible and so in order to avoid overfitting, we'll omit these columns when fitting the mode.  This approach effectively serves as a form of cross-validation.
 
 ```{r}
 # Train a random forest
 modFit <- train(ppTrain[8:125], ppTrain$classe, method="rf", trControl=trainControl(method="cv", number=5), prox=TRUE, allowParallel=TRUE)
+
+confusionMatrix(modFit)
 ```
 
 ## Validating the model
