@@ -109,11 +109,9 @@ We will drop the first five columns - the row number, participant and timestamp 
 ```{r}
 # Train a random forest
 modFit <- train(ppTrain[8:125], ppTrain$classe, method="rf", trControl=trainControl(method="cv", number=5), prox=TRUE, allowParallel=TRUE)
-
-confusionMatrix(modFit)
 ```
 
-## Validating the model
+## Cross-Validating the model
 
 Now that we have a model, we can apply it to our validation set to see how accurate it is:
 
@@ -123,7 +121,7 @@ predValidate <- predict(modFit, ppValidate)
 table(predValidate, ppValidate$classe)
 ```
 
-Here we see that we were only wrong for 5 predictions out of 1960! So we can feel fairly comfortable applying the model to the testing set:
+Here we see that we were only wrong for 5 predictions out of 1960, an average accuracy of 99.74%! So we can feel fairly comfortable applying the model to the testing set:
 
 ```{r}
 predTest <- predict(modFit, ppTest)

@@ -1729,7 +1729,7 @@ ppTest&lt;-predict(preProcCenterScale, testImputed)</code></pre>
 modFit &lt;- train(ppTrain[8:125], ppTrain$classe, method=&quot;rf&quot;, trControl=trainControl(method=&quot;cv&quot;, number=5), prox=TRUE, allowParallel=TRUE)</code></pre>
 </div>
 <div id="validating-the-model" class="section level2">
-<h2>Validating the model</h2>
+<h2>Cross-Validating the model</h2>
 <p>Now that we have a model, we can apply it to our validation set to see how accurate it is:</p>
 <pre class="r"><code>predValidate &lt;- predict(modFit, ppValidate)
 
@@ -1741,7 +1741,7 @@ table(predValidate, ppValidate$classe)</code></pre>
 ##            C   0   0 341   2   1
 ##            D   0   0   0 316   1
 ##            E   0   1   0   3 358</code></pre>
-<p>Here we see that we were only wrong for 5 predictions out of 1960! So we can feel fairly comfortable applying the model to the testing set:</p>
+<p>Here we see that we were only wrong for 5 predictions out of 1960, an average accuracy of 99.74%! So we can feel fairly comfortable applying the model to the testing set:</p>
 <pre class="r"><code>predTest &lt;- predict(modFit, ppTest)
 
 predTest</code></pre>
